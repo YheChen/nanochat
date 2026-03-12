@@ -13,10 +13,9 @@ class SmolTalk2(Task):
     Use max_rows to cap size for budgeted runs.
     """
 
-    def __init__(self, split, max_rows=None, **kwargs):
+    def __init__(self, split, config="SFT", max_rows=None, **kwargs):
         super().__init__(**kwargs)
-        assert split in ["train", "test"], "SmolTalk2 split must be train|test"
-        ds = load_dataset("HuggingFaceTB/smoltalk2", split=split)
+        ds = load_dataset("HuggingFaceTB/smoltalk2", config, split=split)
         if max_rows is not None:
             max_rows = min(max_rows, len(ds))
             ds = ds.select(range(max_rows))

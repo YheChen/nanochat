@@ -26,8 +26,13 @@ def render_chat(example) -> str:
 def main() -> None:
     parser = argparse.ArgumentParser(description="Export SmolTalk2 to parquet shards")
     parser.add_argument("--out-dir", type=str, required=True, help="output directory for parquet shards")
-    parser.add_argument("--split", type=str, default="train", help="dataset split to export (train/test)")
     parser.add_argument("--config", type=str, default="SFT", help="smoltalk2 config: SFT|Mid|Preference")
+    parser.add_argument(
+        "--split",
+        type=str,
+        default="smoltalk_smollm3_everyday_conversations_no_think",
+        help="smoltalk2 split name within the config (see HF dataset card for available splits)",
+    )
     parser.add_argument("--shard-size", type=int, default=100_000, help="rows per parquet shard")
     parser.add_argument("--limit", type=int, default=None, help="optional row limit for quick tests")
     args = parser.parse_args()

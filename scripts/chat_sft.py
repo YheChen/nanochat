@@ -162,8 +162,13 @@ identity_conversations_filepath = os.path.join(base_dir, "identity_conversations
 use_smoltalk2 = os.environ.get("NANOCHAT_SFT_SMOLTALK2", "0") == "1"
 smoltalk2_max_rows_env = os.environ.get("NANOCHAT_SFT_SMOLTALK2_MAX_ROWS")
 smoltalk2_max_rows = int(smoltalk2_max_rows_env) if smoltalk2_max_rows_env else None
+smoltalk2_config = os.environ.get("NANOCHAT_SFT_SMOLTALK2_CONFIG", "SFT")
+smoltalk2_split = os.environ.get(
+    "NANOCHAT_SFT_SMOLTALK2_SPLIT",
+    "smoltalk_smollm3_everyday_conversations_no_think",
+)
 base_chat_task = (
-    SmolTalk2(split="train", max_rows=smoltalk2_max_rows)
+    SmolTalk2(split=smoltalk2_split, config=smoltalk2_config, max_rows=smoltalk2_max_rows)
     if use_smoltalk2 else SmolTalk(split="train")
 )
 train_tasks = [
@@ -178,7 +183,7 @@ train_tasks = [
 train_dataset = TaskMixture(train_tasks)
 print0(f"Training mixture: {len(train_dataset):,} rows (MMLU x{args.mmlu_epochs}, GSM8K x{args.gsm8k_epochs})")
 val_dataset = TaskMixture([
-    SmolTalk2(split="test", max_rows=smoltalk2_max_rows) if use_smoltalk2 else SmolTalk(split="test"), # 24K rows in test set
+    SmolTalk2(split=smoltalk2_split, config=smoltalk2_config, max_rows=smoltalk2_max_rows) if use_smoltalk2 else SmolTalk(split="test"), # 24K rows in test set
     MMLU(subset="all", split="test", stop=5200), # 14K rows in test set, use only 5.2K to match the train ratios
     GSM8K(subset="main", split="test", stop=420), # 1.32K rows in test set, use only 420 to match the train ratios
 ]) # total: 24K + 14K + 1.32K ~= 39K rows
