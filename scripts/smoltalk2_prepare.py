@@ -28,34 +28,36 @@ def main() -> None:
     parser.add_argument("--out-dir", type=str, required=True, help="output directory for parquet shards")
     parser.add_argument("--config", type=str, default="SFT", help="smoltalk2 config: SFT|Mid|Preference")
     parser.add_argument(
-        "--split",
+        "--splits",
         type=str,
         default="smoltalk_smollm3_everyday_conversations_no_think",
-        help="smoltalk2 split name within the config (see HF dataset card for available splits)",
+        help="comma-separated smoltalk2 split names within the config (see HF dataset card)",
     )
     parser.add_argument("--shard-size", type=int, default=100_000, help="rows per parquet shard")
-    parser.add_argument("--limit", type=int, default=None, help="optional row limit for quick tests")
+    parser.add_argument("--limit", type=int, default=None, help="optional row limit per split for quick tests")
     args = parser.parse_args()
 
     os.makedirs(args.out_dir, exist_ok=True)
 
-    ds = load_dataset("HuggingFaceTB/smoltalk2", args.config, split=args.split, streaming=True)
+    split_list = [s.strip() for s in args.splits.split(",") if s.strip()]
 
     buffer = []
     shard_idx = 0
-    total = 0
-    for ex in ds:
-        text = render_chat(ex)
-        if text:
-            buffer.append(text)
-            total += 1
-        if args.limit is not None and total >= args.limit:
-            break
-        if len(buffer) >= args.shard_size:
-            table = pa.Table.from_pydict({"text": buffer})
-            pq.write_table(table, os.path.join(args.out_dir, f"shard_{shard_idx:05d}.parquet"))
-            shard_idx += 1
-            buffer = []
+    for split_name in split_list:
+        ds = load_dataset("HuggingFaceTB/smoltalk2", args.config, split=split_name, streaming=True)
+        total = 0
+        for ex in ds:
+            text = render_chat(ex)
+            if text:
+                buffer.append(text)
+                total += 1
+            if args.limit is not None and total >= args.limit:
+                break
+            if len(buffer) >= args.shard_size:
+                table = pa.Table.from_pydict({"text": buffer})
+                pq.write_table(table, os.path.join(args.out_dir, f"shard_{shard_idx:05d}.parquet"))
+                shard_idx += 1
+                buffer = []
 
     if buffer:
         table = pa.Table.from_pydict({"text": buffer})
