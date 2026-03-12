@@ -1,0 +1,69 @@
+\documentclass[11pt]{article}
+\usepackage[margin=1in]{geometry}
+\usepackage{booktabs}
+\usepackage{amsmath}
+\usepackage{graphicx}
+\usepackage{tikz}
+\usetikzlibrary{positioning}
+\usepackage{hyperref}
+\usepackage{enumitem}
+\setlist{nosep}
+
+\title{CSC490 A4: RL-ing Nanochat}
+\author{
+Chris Cao (Student \#1009840460)\\
+Yanzhen Chen (Student \#1010317630)\\
+Clarina Ong (Student \#1008820180)\\
+Martin Zou (Student \#1009992885)
+}
+\date{March 12, 2026}
+
+\begin{document}
+\maketitle
+
+\section*{Part 1: GRPO and RL Review}
+In \texttt{scripts/chat\_rl.py}, nanochat implements a simplified GRPO that is much closer to REINFORCE than the standard GRPO formulation. Standard GRPO uses a reference model and a KL trust-region term (or equivalent) to keep the policy close to a baseline, often with PPO-style ratio/clipping and group-based z-score normalization of rewards. Nanochat drops the KL/ratio machinery entirely because it is strictly on-policy, and it avoids the extra compute and complexity of maintaining a reference. It also uses DAPO-style token-level masking and a simple mean-centered reward baseline $(r - \mu)$ instead of z-score $(r - \mu)/\sigma$, trading some variance reduction for simplicity and stability. These choices likely reflect Karpathy's goal of a small, fast, easy-to-debug RL loop that is good enough for GSM8K improvements without the overhead of full GRPO.
+
+\section*{Part 2: SFT \& Midtraining}
+
+\subsection*{Dataset Choice (SmolTalk2)}
+I selected SmolTalk2 as the additional dataset for SFT and midtraining because it is purpose-built for conversational and instruction-following behavior. It contains diverse task types (summarization, rewriting, reasoning, planning, QA, and multi-turn dialogue) in a consistent chat-style schema, which aligns directly with the goal of improving conversation and task performance. SmolTalk2 is also substantially larger than the original SmolTalk dataset, making it a strong candidate for improving generalization while keeping the same training codepath.
+
+\subsection*{Baseline Runs (Original Configurations)}
+\begin{itemize}
+\item SFT (original mixture): run \texttt{scripts.chat\_sft} with the default training mixture and the pretrained checkpoint (\texttt{final-d12-nosoftcap}, step 2000).
+\item Midtraining (original): continue \texttt{scripts.base\_train} from the same checkpoint on the default pretraining data.
+\end{itemize}
+
+\subsection*{SmolTalk2 Runs (Additional Dataset)}
+\begin{itemize}
+\item SFT + SmolTalk2: replace or augment the SmolTalk portion of the SFT mixture with SmolTalk2, keeping all hyperparameters identical to the original SFT run.
+\item Midtraining + SmolTalk2: continue \texttt{scripts.base\_train} from the same checkpoint on a midtraining corpus derived from SmolTalk2 (same configuration as the original midtraining run).
+\end{itemize}
+
+\subsection*{Results Summary}
+\begin{table}[h]
+\centering
+\begin{tabular}{l l r l}
+\toprule
+\textbf{Run} & \textbf{Dataset} & \textbf{Val BPB} & \textbf{Notes} \\
+\midrule
+SFT (baseline) & Default SFT mixture & 0.4758 & ChatCORE 0.2111; MMLU 30.41\%; ARC-E 32.79\%; ARC-C 28.67\% \\
+SFT (SmolTalk2) & SmolTalk2-enhanced & -- & TBD \\
+Midtraining (baseline) & Default pretrain data & -- & TBD \\
+Midtraining (SmolTalk2) & SmolTalk2-derived & -- & TBD \\
+\bottomrule
+\end{tabular}
+\caption{Part 2 comparison table.}
+\end{table}
+
+\subsection*{Baseline SFT Results}
+The baseline SFT run converged in just over one epoch (step 1003), with minimum validation BPB of 0.4758 and ChatCORE 0.2111 (ChatCORE\_cat 0.0750). Task breakdown at the final evaluation: ARC-Easy 32.79\%, ARC-Challenge 28.67\%, MMLU 30.41\%, GSM8K 0\%, HumanEval 4.17\%, and SpellingBee 100\%. Total training time was 50.69 minutes.
+
+\section*{References}
+\begin{itemize}
+\item Karpathy, A. (2025). \textit{nanochat: A tiny chatbot arena and training harness}. GitHub discussion.
+\item Shao, Z., Wang, P., Zhu, Q., et al. (2024). GRPO: Group Relative Policy Optimization for Language Model Alignment. \textit{arXiv preprint} arXiv:2402.05191.
+\end{itemize}
+
+\end{document}
