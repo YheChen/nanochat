@@ -43,6 +43,9 @@ class SmolTalk2Parquet(Task):
         rng = random.Random(42)
         rng.shuffle(self.index_map)
         self.length = len(self.index_map)
+        # simple one-file cache to avoid repeated disk reads
+        self._cached_path = None
+        self._cached_table = None
 
     def num_examples(self):
         return self.length
@@ -50,9 +53,10 @@ class SmolTalk2Parquet(Task):
     def get_example(self, index):
         file_idx, row_idx = self.index_map[index]
         path = self.parquet_paths[file_idx]
-        pf = pq.ParquetFile(path)
-        row = pf.read_row_group(row_idx)
-        text = row.column("text").to_pylist()[0]
+        if self._cached_path != path:
+            self._cached_table = pq.read_table(path, columns=["text"])
+            self._cached_path = path
+        text = self._cached_table.column("text")[row_idx].as_py()
         # Convert raw text into a single-turn conversation
         conversation = {
             "messages": [
