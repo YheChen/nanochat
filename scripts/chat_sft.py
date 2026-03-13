@@ -31,6 +31,7 @@ from tasks.gsm8k import GSM8K
 from tasks.mmlu import MMLU
 from tasks.smoltalk import SmolTalk
 from tasks.smoltalk2 import SmolTalk2
+from tasks.smoltalk2_parquet import SmolTalk2Parquet
 from tasks.customjson import CustomJSON
 from tasks.spellingbee import SimpleSpelling, SpellingBee
 
@@ -167,10 +168,13 @@ smoltalk2_split = os.environ.get(
     "NANOCHAT_SFT_SMOLTALK2_SPLIT",
     "smoltalk_smollm3_everyday_conversations_no_think",
 )
-base_chat_task = (
-    SmolTalk2(split=smoltalk2_split, config=smoltalk2_config, max_rows=smoltalk2_max_rows)
-    if use_smoltalk2 else SmolTalk(split="train")
-)
+smoltalk2_parquet_dir = os.environ.get("NANOCHAT_SFT_SMOLTALK2_PARQUET_DIR")
+if use_smoltalk2 and smoltalk2_parquet_dir:
+    base_chat_task = SmolTalk2Parquet(data_dir=smoltalk2_parquet_dir, split="train", max_rows=smoltalk2_max_rows)
+elif use_smoltalk2:
+    base_chat_task = SmolTalk2(split=smoltalk2_split, config=smoltalk2_config, max_rows=smoltalk2_max_rows)
+else:
+    base_chat_task = SmolTalk(split="train")
 train_tasks = [
     base_chat_task, # conversational dataset (SmolTalk or SmolTalk2)
     CustomJSON(filepath=identity_conversations_filepath), # 1000 rows of synthetic identity conversations
@@ -183,7 +187,10 @@ train_tasks = [
 train_dataset = TaskMixture(train_tasks)
 print0(f"Training mixture: {len(train_dataset):,} rows (MMLU x{args.mmlu_epochs}, GSM8K x{args.gsm8k_epochs})")
 val_dataset = TaskMixture([
-    SmolTalk2(split=smoltalk2_split, config=smoltalk2_config, max_rows=smoltalk2_max_rows) if use_smoltalk2 else SmolTalk(split="test"), # 24K rows in test set
+    SmolTalk2Parquet(data_dir=smoltalk2_parquet_dir, split="test", max_rows=smoltalk2_max_rows)
+        if (use_smoltalk2 and smoltalk2_parquet_dir)
+        else (SmolTalk2(split=smoltalk2_split, config=smoltalk2_config, max_rows=smoltalk2_max_rows)
+              if use_smoltalk2 else SmolTalk(split="test")), # 24K rows in test set
     MMLU(subset="all", split="test", stop=5200), # 14K rows in test set, use only 5.2K to match the train ratios
     GSM8K(subset="main", split="test", stop=420), # 1.32K rows in test set, use only 420 to match the train ratios
 ]) # total: 24K + 14K + 1.32K ~= 39K rows
