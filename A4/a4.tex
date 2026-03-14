@@ -48,8 +48,8 @@ I selected SmolTalk2 as the additional dataset for SFT and midtraining because i
 \toprule
 \textbf{Run} & \textbf{Dataset} & \textbf{Val BPB} & \textbf{Notes} \\
 \midrule
-SFT (baseline) & Default SFT mixture & 0.4758 & ChatCORE 0.2111; MMLU 30.41\%; ARC-E 32.79\%; ARC-C 28.67\% \\
-SFT (SmolTalk2) & SmolTalk2-enhanced & -- & TBD \\
+SFT (baseline) & Default SFT mixture & 0.4770 & Step 1001; val BPB; 4xGPU run \\
+SFT (SmolTalk2) & SmolTalk2-enhanced & 0.9117 & Step 277; 4xGPU run \\
 Midtraining (baseline) & Default pretrain data & -- & TBD \\
 Midtraining (SmolTalk2) & SmolTalk2-derived & 1.0831 (min 0.9309) & CORE 0.0532 at step 3000; +1000 steps from 2000 \\
 \bottomrule
@@ -58,7 +58,10 @@ Midtraining (SmolTalk2) & SmolTalk2-derived & 1.0831 (min 0.9309) & CORE 0.0532 
 \end{table}
 
 \subsection*{Baseline SFT Results}
-The baseline SFT run converged in just over one epoch (step 1003), with minimum validation BPB of 0.4758 and ChatCORE 0.2111 (ChatCORE\_cat 0.0750). Task breakdown at the final evaluation: ARC-Easy 32.79\%, ARC-Challenge 28.67\%, MMLU 30.41\%, GSM8K 0\%, HumanEval 4.17\%, and SpellingBee 100\%. Total training time was 50.69 minutes.
+The baseline SFT run converged in just over one epoch (step 1001), with minimum validation BPB of 0.4770. Total training time was 10.40 minutes on 4 GPUs. (ChatCORE/task breakdown was disabled for this run.)
+
+\subsection*{SmolTalk2 SFT Results}
+Using the SmolTalk2-derived dataset for the conversational component of SFT, the run completed at step 277 with validation BPB 0.9117. Total training time was 2.80 minutes on 4 GPUs.
 
 \subsection*{SmolTalk2 Midtraining Results}
 I continued pretraining on the SmolTalk2-derived corpus for 1,000 additional steps (step 2000 $\rightarrow$ 3000) with the same base configuration. The run finished at step 3000 with CORE metric 0.0532 and validation BPB 1.0831, with a minimum validation BPB of 0.9309 during the run. Total training time for this extension was 165.03 minutes.

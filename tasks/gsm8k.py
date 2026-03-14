@@ -14,6 +14,7 @@ Working 50 minutes, she earned 0.2 x 50 = $<<0.2*50=10>>10.
 Notice that GSM8K uses tool calls inside << >> tags.
 """
 
+import os
 import re
 from datasets import load_dataset
 from tasks.common import Task
@@ -32,6 +33,15 @@ def extract_answer(completion):
         match_str = match_str.replace(",", "")
         return match_str
     return None
+
+
+def _parse_float(num_str):
+    if num_str is None:
+        return None
+    try:
+        return float(num_str)
+    except ValueError:
+        return None
 
 
 class GSM8K(Task):
@@ -113,5 +123,36 @@ class GSM8K(Task):
         Later this could be made more complex (e.g. format matching etc.)
         """
         is_correct = self.evaluate(conversation, assistant_response)
-        is_correct_float = float(is_correct)
-        return is_correct_float
+
+        # Base reward: exact answer correctness (original behavior)
+        reward = float(is_correct)
+
+        # Optional reward shaping (Part 4 experiments)
+        # Modes: base | step_penalty | partial_progress | step+partial
+        mode = os.getenv("NANOCHAT_GSM8K_REWARD_MODE", "base")
+        step_penalty = float(os.getenv("NANOCHAT_GSM8K_STEP_PENALTY", "0.0"))
+        partial_weight = float(os.getenv("NANOCHAT_GSM8K_PARTIAL_WEIGHT", "0.0"))
+
+        # Step penalty: discourage long, multi-step outputs
+        if mode in {"step_penalty", "step+partial"} and step_penalty > 0.0:
+            # Count non-empty lines as "steps"
+            steps = [line for line in assistant_response.splitlines() if line.strip()]
+            step_count = max(1, len(steps)) if assistant_response.strip() else 0
+            reward -= step_penalty * step_count
+
+        # Partial progress: give small reward when numeric answer is close
+        if mode in {"partial_progress", "step+partial"} and partial_weight > 0.0:
+            if not is_correct:
+                # Extract reference answer
+                assistant_message = conversation['messages'][-1]
+                last_text_part = assistant_message['content'][-1]['text']
+                ref_num = _parse_float(extract_answer(last_text_part))
+                pred_num = _parse_float(extract_answer(assistant_response))
+                if ref_num is not None and pred_num is not None:
+                    denom = max(1.0, abs(ref_num))
+                    rel_err = abs(pred_num - ref_num) / denom
+                    # Linear partial credit, capped in [0, 1]
+                    partial = max(0.0, 1.0 - min(1.0, rel_err))
+                    reward += partial_weight * partial
+
+        return reward
